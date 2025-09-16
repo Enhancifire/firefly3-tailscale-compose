@@ -8,7 +8,7 @@ services:
     restart: always
     volumes:
       - ${UPLOAD_DIR}:/var/www/html/storage/upload
-    env_file: .env
+    env_file: stack.env
     # The 'network_mode: service:tailscale-app' makes 'app' use the networking stack of 'tailscale-app'.
     # This means 'app' won't have its own ports exposed to the host directly.
     network_mode: service:tailscale-app
@@ -25,7 +25,7 @@ services:
     networks:
       - firefly_iii
     restart: always
-    env_file: .db.env
+    env_file: stack.env
     volumes:
       - ${APPCONFIG_DIR}/Firefly/db:/var/lib/mysql
 
@@ -43,13 +43,13 @@ services:
         condition: service_started
       tailscale-importer:
         condition: service_healthy
-    env_file: .importer.env
+    env_file: stack.env
 
   cron:
     image: alpine
     container_name: firefly_iii_cron
     restart: always
-    env_file: .env
+    env_file: stack.env
     command: sh -c "
       apk add tzdata && \
       ln -fs /usr/share/zoneinfo/$$TZ /etc/localtime && \
@@ -124,9 +124,6 @@ services:
       start_period: 10s
     restart: always
 
-volumes:
-  firefly_iii_upload:
-  firefly_iii_db:
 
 networks:
   firefly_iii:
