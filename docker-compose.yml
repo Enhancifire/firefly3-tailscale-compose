@@ -1,7 +1,7 @@
 services:
   app:
     image: fireflyiii/core:latest
-    hostname: app
+    # hostname: app
     container_name: firefly_iii_core
     # networks:
     #   - firefly_iii
@@ -20,7 +20,7 @@ services:
 
   db:
     image: mariadb:lts
-    hostname: db
+    # hostname: db
     container_name: firefly_iii_db
     # networks:
     #   - firefly_iii
@@ -32,7 +32,7 @@ services:
 
   importer:
     image: fireflyiii/data-importer:latest
-    hostname: importer
+    # hostname: importer
     restart: always
     container_name: firefly_iii_importer
     # networks:
