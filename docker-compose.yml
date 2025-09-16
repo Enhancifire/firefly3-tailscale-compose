@@ -1,0 +1,133 @@
+services:
+  app:
+    image: fireflyiii/core:latest
+    hostname: app
+    container_name: firefly_iii_core
+    networks:
+      - firefly_iii
+    restart: always
+    volumes:
+      - ${UPLOAD_DIR}:/var/www/html/storage/upload
+    env_file: .env
+    # The 'network_mode: service:tailscale-app' makes 'app' use the networking stack of 'tailscale-app'.
+    # This means 'app' won't have its own ports exposed to the host directly.
+    network_mode: service:tailscale-app
+    depends_on:
+      db:
+        condition: service_started
+      tailscale-app:
+        condition: service_healthy
+
+  db:
+    image: mariadb:lts
+    hostname: db
+    container_name: firefly_iii_db
+    networks:
+      - firefly_iii
+    restart: always
+    env_file: .db.env
+    volumes:
+      - ${APPCONFIG_DIR}/Firefly/db:/var/lib/mysql
+
+  importer:
+    image: fireflyiii/data-importer:latest
+    hostname: importer
+    restart: always
+    container_name: firefly_iii_importer
+    networks:
+      - firefly_iii
+    # The 'network_mode: service:tailscale-importer' makes 'importer' use the networking stack of 'tailscale-importer'.
+    network_mode: service:tailscale-importer
+    depends_on:
+      app:
+        condition: service_started
+      tailscale-importer:
+        condition: service_healthy
+    env_file: .importer.env
+
+  cron:
+    image: alpine
+    container_name: firefly_iii_cron
+    restart: always
+    env_file: .env
+    command: sh -c "
+      apk add tzdata && \
+      ln -fs /usr/share/zoneinfo/$$TZ /etc/localtime && \
+      echo \"0 3 * * * wget -qO- http://app:8080/api/v1/cron/$$STATIC_CRON_TOKEN;echo\"
+      | crontab - && \
+      crond -f -L /dev/stdout"
+    networks:
+      - firefly_iii
+    depends_on:
+      - app
+
+  # The Tailscale container for the main 'app' service.
+  tailscale-app:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-app
+    hostname: firefly # Name within your Tailscale environment
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_SERVE_CONFIG=/config/serve.json
+      - TS_USERSPACE=false
+      - TS_ENABLE_HEALTH_CHECK=true
+      - TS_LOCAL_ADDR_PORT=127.0.0.1:41234
+    volumes:
+      - ${APPCONFIG_DIR}/Firefly/ts-config/app:/config
+      - ${APPCONFIG_DIR}/Firefly/ts-state/app:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    ports:
+      # This port binding makes the app accessible on your Tailnet.
+      # Firefly III listens on port 8080 inside its container.
+      - 8518:8080
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:41234/healthz"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+  # The Tailscale container for the 'importer' service.
+  tailscale-importer:
+    image: tailscale/tailscale:latest
+    container_name: tailscale-importer
+    hostname: firefly-importer # Name within your Tailscale environment
+    environment:
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_SERVE_CONFIG=/config/serve.json
+      - TS_USERSPACE=false
+      - TS_ENABLE_HEALTH_CHECK=true
+      - TS_LOCAL_ADDR_PORT=127.0.0.1:41235
+    volumes:
+      - ${APPCONFIG_DIR}/Firefly-Importer/ts-config/importer:/config
+      - ${APPCONFIG_DIR}/Firefly-Importer/ts-state/importer:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+      - sys_module
+    ports:
+      # The importer listens on port 8080 inside its container.
+      - 8285:8080
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:41235/healthz"]
+      interval: 1m
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: always
+
+volumes:
+  firefly_iii_upload:
+  firefly_iii_db:
+
+networks:
+  firefly_iii:
+    driver: bridge
