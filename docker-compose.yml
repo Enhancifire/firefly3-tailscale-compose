@@ -3,8 +3,8 @@ services:
     image: fireflyiii/core:latest
     hostname: app
     container_name: firefly_iii_core
-    networks:
-      - firefly_iii
+    # networks:
+    #   - firefly_iii
     restart: always
     volumes:
       - ${UPLOAD_DIR}:/var/www/html/storage/upload
@@ -22,8 +22,8 @@ services:
     image: mariadb:lts
     hostname: db
     container_name: firefly_iii_db
-    networks:
-      - firefly_iii
+    # networks:
+    #   - firefly_iii
     restart: always
     env_file: stack.env
     volumes:
@@ -34,8 +34,8 @@ services:
     hostname: importer
     restart: always
     container_name: firefly_iii_importer
-    networks:
-      - firefly_iii
+    # networks:
+    #   - firefly_iii
     # The 'network_mode: service:tailscale-importer' makes 'importer' use the networking stack of 'tailscale-importer'.
     network_mode: service:tailscale-importer
     depends_on:
@@ -125,6 +125,6 @@ services:
     restart: always
 
 
-networks:
-  firefly_iii:
-    driver: bridge
+# networks:
+#   firefly_iii:
+#     driver: bridge
