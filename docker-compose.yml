@@ -26,6 +26,7 @@ services:
     #   - firefly_iii
     restart: always
     env_file: stack.env
+    network_mode: service:tailscale-app
     volumes:
       - ${APPCONFIG_DIR}/Firefly/db:/var/lib/mysql
 
@@ -50,14 +51,15 @@ services:
     container_name: firefly_iii_cron
     restart: always
     env_file: stack.env
+    network_mode: service:tailscale-app
     command: sh -c "
       apk add tzdata && \
       ln -fs /usr/share/zoneinfo/$$TZ /etc/localtime && \
-      echo \"0 3 * * * wget -qO- http://app:8080/api/v1/cron/$$STATIC_CRON_TOKEN;echo\"
+      echo \"0 3 * * * wget -qO- http://localhost:8080/api/v1/cron/$$STATIC_CRON_TOKEN;echo\"
       | crontab - && \
       crond -f -L /dev/stdout"
-    networks:
-      - firefly_iii
+    # networks:
+    #   - firefly_iii
     depends_on:
       - app
 
